@@ -20,8 +20,6 @@ import '../cloud_models/event.dart';
 import '../replication_controller.dart';
 
 class ReplicationService implements ReplicationController {
-
-
   final _log = Logger('ReplicationService');
 
   final cloud = CloudService();
@@ -34,6 +32,7 @@ class ReplicationService implements ReplicationController {
   @override
   void geigerReplication() async {
     print('Starting GEIGER Replication');
+
     /// Follow diagram
     /// 3 steps replication
     /// Cloud to device
@@ -43,17 +42,19 @@ class ReplicationService implements ReplicationController {
 
     // 1. INIT STORAGE
     await initGeigerStorage();
+
     /// CHECK WHEN LAST REPLICATION TOOK PLACE
     /// Nodes that handle replication:
     /// :Replication:LastReplication
     DateTime _actual = DateTime.now();
     bool _fullRep;
     // 180 -> Default expiring date
-    DateTime _fromDate = _actual.subtract(Duration(days: 180)); 
+    DateTime _fromDate = _actual.subtract(Duration(days: 180));
     print('[1st FLOW] - TIMESTAMP CHECKER');
     try {
       toolboxAPI.Node timeChecker = getNode(':Replication:LastReplication');
-      DateTime _lastTimestamp = DateTime.parse(timeChecker.getValue('timestamp').toString());
+      DateTime _lastTimestamp =
+          DateTime.parse(timeChecker.getValue('timestamp').toString());
       Duration _diff = _actual.difference(_lastTimestamp);
       if (_diff.inDays > 30) {
         /// FULL REPLICATION TAKES PLACE
@@ -65,6 +66,7 @@ class ReplicationService implements ReplicationController {
       }
     } catch (e) {
       print('NO REPLICATION NODE - NO REPLICATION HAS BEEN DONE');
+
       /// FULL REPLICATION TAKES PLACE
       _fullRep = true;
     }
@@ -73,16 +75,18 @@ class ReplicationService implements ReplicationController {
     String _username;
     try {
       toolboxAPI.Node local = getNode(':Local');
-      String _localUser = local.getValue('currentUser')!.getValue("en").toString();
+      String _localUser =
+          local.getValue('currentUser')!.getValue("en").toString();
       _username = _localUser;
       print(_username);
       //CHECK IF USER ALREADY IN CLOUD & IF NOT, CREATE ONE
-      bool exists =  await cloud.userExists(_username.toString());
-      print(exists.toString());
+      bool exists = await cloud.userExists(_username.toString());
+      print(exists.toString() + "nosa is a user");
       if (exists == false) {
         cloud.createUser(_username.toString());
         //IF NO USER IN CLOUD. NO REPLICATION HAS TAKEN PLACE
         print('No replication has taken place');
+
         /// FULL REPLICATION TAKES PLACE
         _fullRep = true;
       }
@@ -98,7 +102,8 @@ class ReplicationService implements ReplicationController {
     if (_fullRep == true) {
       events = await cloud.getUserEvents(_username);
     } else {
-      events = await cloud.getUserEventsDateFilter(_username, _fromDate.toString());
+      events =
+          await cloud.getUserEventsDateFilter(_username, _fromDate.toString());
     }
     for (var userEvent in events) {
       Event singleOne = await cloud.getSingleUserEvent(_username, userEvent);
@@ -108,7 +113,7 @@ class ReplicationService implements ReplicationController {
       if (type.toLowerCase() == "keyvalue") {
         print('NO E2EE');
         updateSingleNodeCloud2Device(singleOne);
-      } 
+      }
       if (type.toLowerCase() == "keyvalue") {
         print('E2EE');
         //GET KEYS
@@ -118,7 +123,8 @@ class ReplicationService implements ReplicationController {
           final enc = Enc.Encrypter(Enc.AES(keyVal, mode: Enc.AESMode.cbc));
           final iv = Enc.IV.fromLength(32);
           //DECRYPT DATA
-          String decrypted = enc.decrypt(singleOne.content.toString() as Enc.Encrypted, iv:iv);
+          String decrypted = enc
+              .decrypt(singleOne.content.toString() as Enc.Encrypted, iv: iv);
           singleOne.setContent = decrypted.toString();
           updateSingleNodeCloud2Device(singleOne);
         } catch (e) {
@@ -134,7 +140,8 @@ class ReplicationService implements ReplicationController {
     if (_fullRep == true) {
       freeEvents = await cloud.getTLPWhiteEvents();
     } else {
-      freeEvents = await cloud.getTLPWhiteEventsDateFilter(_fromDate.toString());
+      freeEvents =
+          await cloud.getTLPWhiteEventsDateFilter(_fromDate.toString());
     }
     for (var free in freeEvents) {
       /// UUID WILL BE THE CLOUD ONE
@@ -148,8 +155,9 @@ class ReplicationService implements ReplicationController {
       //LOOP ALL ELEMENTS
       storageController.update(newRepNode);
       Map<dynamic, dynamic> mapper = content;
-      mapper.forEach((key, value) { 
-        newRepNode.addOrUpdateValue(toolboxAPI.NodeValueImpl(key, value.toString()));
+      mapper.forEach((key, value) {
+        newRepNode
+            .addOrUpdateValue(toolboxAPI.NodeValueImpl(key, value.toString()));
       });
       checkAndUpdateNodeWithNode(nodePath, newRepNode, cloudTimestamp);
     }
@@ -158,12 +166,10 @@ class ReplicationService implements ReplicationController {
     /// STORE :Global:ThreatWeight:UUID
     updateThreatWeights();
 
-
     /// END OF FIRST DIAGRAM
-    /// CLOUD - DEVICE 
+    /// CLOUD - DEVICE
     /// WRITE LOG
     print('FIRST DIAGRAM COMPLETED');
-
 
     /// START OF THE SECOND DIAGRAM
     /// START CLEANING DATA AND REMOVING TOMBSTONES
@@ -171,18 +177,23 @@ class ReplicationService implements ReplicationController {
     List<toolboxAPI.Node> nodeList = [];
     if (_fullRep == true) {
       /// FIND ALL THE NODES
-     nodeList = await getAllNodes();
+      nodeList = await getAllNodes();
     } else {
       /// ASK FOR SEARCH CRITERIA NODE BASED
       print('PARTIAL REPLICATION');
     }
-    /// SORT NODES BY TIMESTAMP
-    nodeList.sort((a,b) => a.getValue('timestamp').toString().compareTo(b.getValue('timestamp').toString()));
 
-    for(var sorted in nodeList) {
+    /// SORT NODES BY TIMESTAMP
+    nodeList.sort((a, b) => a
+        .getValue('timestamp')
+        .toString()
+        .compareTo(b.getValue('timestamp').toString()));
+
+    for (var sorted in nodeList) {
       /// CHECK TLP
       String tlp = sorted.getValue('tlp').toString();
       String identifier = sorted.getName().toString();
+
       /// CHECK CONSENT
       /// TBD
       /// 3 AGREEMENTS: NEVER, NO ONCE, AGREE ONCE
@@ -194,9 +205,8 @@ class ReplicationService implements ReplicationController {
           final keyVal = Enc.Key.fromUtf8(keys.getValue('key').toString());
           final enc = Enc.Encrypter(Enc.AES(keyVal, mode: Enc.AESMode.cbc));
           final iv = Enc.IV.fromLength(32);
-          Enc.Encrypted encrypted = enc.encrypt(sorted.toString(), iv:iv);
+          Enc.Encrypted encrypted = enc.encrypt(sorted.toString(), iv: iv);
           toCheck.setContent = encrypted.toString();
-          
         } catch (e) {
           toolboxAPI.StorageException('FAILURE GETTING KEYS');
         }
@@ -206,7 +216,7 @@ class ReplicationService implements ReplicationController {
       }
       //CHECK IF EVENT IN CLOUD
       try {
-        // IF OK 
+        // IF OK
         // CHECK TIMESTAMP
         // IF NEEDED -> PUT
         Event exist = await cloud.getSingleUserEvent(_username, identifier);
@@ -221,7 +231,6 @@ class ReplicationService implements ReplicationController {
       }
     }
 
-
     //UPDATE LAST REPLICATION
     updateReplicationNode(_actual);
 
@@ -234,7 +243,7 @@ class ReplicationService implements ReplicationController {
     /// UPDATE
     /// ELSE
     /// CREATE NEW
-    /// 
+    ///
     /// Event Type can be:
     /// create, update, delete, rename
     storageListenerReplication(_username);
@@ -247,14 +256,15 @@ class ReplicationService implements ReplicationController {
   /* INIT */
   Future<void> initGeigerStorage() async {
     print('INIT GEIGER STORAGE');
-    WidgetsFlutterBinding.ensureInitialized();  
+    WidgetsFlutterBinding.ensureInitialized();
     //String dbPath = join(await getDatabasesPath(), 'geiger_database.db');
     //storageController = toolboxAPI.GenericController('Cloud-Replication', toolboxAPI.SqliteMapper(dbPath));
-    storageController = toolboxAPI.GenericController('Cloud-Replication', toolboxAPI.DummyMapper());
+    storageController = toolboxAPI.GenericController(
+        'Cloud-Replication', toolboxAPI.DummyMapper());
     print('INIT GEIGER END');
   }
 
-  /* 
+  /*
   * GET ANY NODE -> BASED ON THE PATH
   */
   toolboxAPI.Node getNode(String path) {
@@ -263,19 +273,22 @@ class ReplicationService implements ReplicationController {
   }
 
   // After replication ends, update with the compared time
-  void updateReplicationNode (DateTime _actual) {
-    /// Should be defined a historic with all replication timestamps? 
+  void updateReplicationNode(DateTime _actual) {
+    /// Should be defined a historic with all replication timestamps?
     /// Add type of replication into the node (full, partial)?
     try {
       print('UPDATE REPLICATION NODE');
       toolboxAPI.Node updateRepNode = getNode(':Replication:LastReplication');
-      updateRepNode.addOrUpdateValue(toolboxAPI.NodeValueImpl('timestamp', _actual.toString()));
+      updateRepNode.addOrUpdateValue(
+          toolboxAPI.NodeValueImpl('timestamp', _actual.toString()));
       storageController.update(updateRepNode);
-    } catch(e) {
+    } catch (e) {
       print('CREATE NEW REPLICATION NODE');
-      toolboxAPI.Node newRepNode = toolboxAPI.NodeImpl(':Replication:LastReplication');
+      toolboxAPI.Node newRepNode =
+          toolboxAPI.NodeImpl(':Replication:LastReplication');
       storageController.addOrUpdate(newRepNode);
-      newRepNode.addOrUpdateValue(toolboxAPI.NodeValueImpl('timestamp', _actual.toString()));
+      newRepNode.addOrUpdateValue(
+          toolboxAPI.NodeValueImpl('timestamp', _actual.toString()));
       storageController.update(newRepNode);
     }
     print('[REPLICATION NODE] UPDATED');
@@ -283,7 +296,7 @@ class ReplicationService implements ReplicationController {
 
   void updateSingleNodeCloud2Device(Event event) async {
     print('CHECK NODES');
-    toolboxAPI.Node _toCheck= event.content as toolboxAPI.Node;
+    toolboxAPI.Node _toCheck = event.content as toolboxAPI.Node;
     String _nodePath = _toCheck.getPath().toString();
     try {
       toolboxAPI.Node inLocal = getNode(_nodePath);
@@ -304,10 +317,12 @@ class ReplicationService implements ReplicationController {
       storageController.update(_toCheck);
     }
   }
-  void checkAndUpdateNodeWithNode(String path, toolboxAPI.Node node, DateTime cloud) {
+
+  void checkAndUpdateNodeWithNode(
+      String path, toolboxAPI.Node node, DateTime cloud) {
     print('CHECK NODES');
     try {
-      toolboxAPI.Node inLocal = getNode(path); 
+      toolboxAPI.Node inLocal = getNode(path);
       /*
       Datetime local = DateTime.parse(inLocal.getValue('timestamp').toString());
       Duration _diff = local.difference(cloud);
@@ -325,6 +340,7 @@ class ReplicationService implements ReplicationController {
       storageController.update(newNode);
     }
   }
+
   /// STORE :Global:ThreatWeight:UUID
   void updateThreatWeights() async {
     print('UPDATE THREAT WEIGHTS');
@@ -335,15 +351,18 @@ class ReplicationService implements ReplicationController {
       try {
         toolboxAPI.Node checker = getNode(':Global:ThreatWeight:$uuid');
         Map<String, dynamic> mapper = data.toJson();
-        mapper.forEach((key, value) { 
-          checker.addOrUpdateValue(toolboxAPI.NodeValueImpl(key, value.toString()));
+        mapper.forEach((key, value) {
+          checker.addOrUpdateValue(
+              toolboxAPI.NodeValueImpl(key, value.toString()));
         });
         storageController.update(checker);
       } catch (e) {
-        toolboxAPI.Node newThreatNode = toolboxAPI.NodeImpl(':Global:ThreatWeight:$uuid');
+        toolboxAPI.Node newThreatNode =
+            toolboxAPI.NodeImpl(':Global:ThreatWeight:$uuid');
         Map<String, dynamic> mapper = data.toJson();
-        mapper.forEach((key, value) { 
-          newThreatNode.addOrUpdateValue(toolboxAPI.NodeValueImpl(key, value.toString()));
+        mapper.forEach((key, value) {
+          newThreatNode.addOrUpdateValue(
+              toolboxAPI.NodeValueImpl(key, value.toString()));
         });
         storageController.update(newThreatNode);
       }
@@ -352,12 +371,17 @@ class ReplicationService implements ReplicationController {
 
   void cleanData(DateTime actual) {
     print('REMOVE DATA - 180 DAYS LIMIT');
+
     /// COMPLETE
     /// RECURSIVE WAY
     /// CHECK TIMESTAMP > 180 DAYS: DELETE
     List<toolboxAPI.Node> checkingData = getAllNodes();
+
     /// SORT NODES BY TIMESTAMP
-    checkingData.sort((a,b) => a.getValue('timestamp').toString().compareTo(b.getValue('timestamp').toString()));
+    checkingData.sort((a, b) => a
+        .getValue('timestamp')
+        .toString()
+        .compareTo(b.getValue('timestamp').toString()));
     for (var node in checkingData) {
       DateTime nodeTime = DateTime.parse(node.getValue('timestamp').toString());
       Duration checker = actual.difference(nodeTime);
@@ -375,19 +399,19 @@ class ReplicationService implements ReplicationController {
     try {
       toolboxAPI.Node root = getNode('');
       getRecursiveNodes(root, nodeList);
-    } catch (e){
+    } catch (e) {
       print('Exception');
     }
     return nodeList;
   }
+
   void getRecursiveNodes(toolboxAPI.Node node, List<toolboxAPI.Node> list) {
     list.add(node);
     Map<String, toolboxAPI.Node> children = node.getChildren();
-    children.forEach((key, value) { 
+    children.forEach((key, value) {
       getRecursiveNodes(value, list);
     });
   }
-
 
   void storageListenerReplication(String _username) async {
     ///ALL ABOUT LISTENER
@@ -426,7 +450,7 @@ class ReplicationService implements ReplicationController {
           String nodeName = node.getName().toString();
           Event toCloudEvent = Event(idEvent: nodeName, tlp: tlp);
           toCloudEvent.setOwner = node.getOwner().toString();
-          if (tlp.toLowerCase() == 'red'){
+          if (tlp.toLowerCase() == 'red') {
             //GET KEYS
             try {
               toolboxAPI.Node keys = getNode(':$nodeName:cloud');
@@ -447,18 +471,19 @@ class ReplicationService implements ReplicationController {
           //CONTINUE TO REPLICATE
           try {
             Event checker = await cloud.getSingleUserEvent(_username, nodeName);
-            if(eventType.toString() == 'create') {
+            if (eventType.toString() == 'create') {
               //UPDATE
               cloud.updateEvent(_username, nodeName, toCloudEvent);
             }
-            if(eventType.toString() == 'update') {
+            if (eventType.toString() == 'update') {
               //UPDATE
               cloud.updateEvent(_username, nodeName, toCloudEvent);
             }
-            if(eventType.toString() == 'rename') {
+            if (eventType.toString() == 'rename') {
               //CHECK PREVIOUS ONE
               try {
-                Event oldChecker = await cloud.getSingleUserEvent(_username, oldNode.getName().toString());
+                Event oldChecker = await cloud.getSingleUserEvent(
+                    _username, oldNode.getName().toString());
                 //IF EXISTED - DELETE
                 //THEN - CREATE
                 cloud.deleteEvent(_username, oldChecker.idEvent.toString());
@@ -471,18 +496,19 @@ class ReplicationService implements ReplicationController {
             }
           } catch (e) {
             print('NODE NOT IN CLOUD.');
-            if(eventType.toString() == 'create') {
+            if (eventType.toString() == 'create') {
               //CREATE
               cloud.createEvent(_username, toCloudEvent);
             }
-            if(eventType.toString() == 'update') {
+            if (eventType.toString() == 'update') {
               //CREATE
               cloud.createEvent(_username, toCloudEvent);
             }
-            if(eventType.toString() == 'rename') {
+            if (eventType.toString() == 'rename') {
               //CHECK PREVIOUS ONE
               try {
-                Event oldChecker = await cloud.getSingleUserEvent(_username, oldNode.getName().toString());
+                Event oldChecker = await cloud.getSingleUserEvent(
+                    _username, oldNode.getName().toString());
                 //IF EXISTED - DELETE
                 //THEN - CREATE
                 cloud.deleteEvent(_username, oldChecker.idEvent.toString());
@@ -518,7 +544,7 @@ class ReplicationService implements ReplicationController {
         //TBD - ASK USER FOR CONSENT - GENERAL CONSENT - USER BASED
         //IF USER AGREE ONCE - Consent true & TLP RED - UPDATE NODE
         //IF USER NOT AGREE FOREVER - Consent false CREATE CONSENT
-        //USER DOES NOT AGREE ONCE - Consent false & SET TLP RED - UPDATE NODE 
+        //USER DOES NOT AGREE ONCE - Consent false & SET TLP RED - UPDATE NODE
 
         //UNTIL CONSENT CLEAR - TRUE
         consent = true;
@@ -527,5 +553,4 @@ class ReplicationService implements ReplicationController {
     }
     return consent;
   }
-
 }

@@ -8,11 +8,11 @@ import 'package:http/http.dart' as http;
 import 'package:cloud_replication_package/src/service/cloud_service.dart';
 
 void replicationTests() async {
-  test('Full Replication', ()  {
-    ReplicationController rep = ReplicationService();
+  test('Full Replication', () {
+    ReplicationService rep = ReplicationService();
     rep.geigerReplication();
   });
-  test('User Exist', ()  async {
+  test('User Exist', () async {
     var cloud = CloudService();
     bool response = await cloud.userExists('anyRandomUserId');
     print(response);

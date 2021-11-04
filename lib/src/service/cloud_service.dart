@@ -8,13 +8,11 @@ import '../cloud_models/threat_dict.dart';
 import '../cloud_models/threat_weights.dart';
 import '../cloud_models/translation.dart';
 
-
 class CloudService {
-
   final String uri = "http://37.48.101.252:10002/geiger-cloud/api";
 
   CloudService();
-  
+
   // CREATE EVENT
   Future<void> createEvent(String username, Event event) async {
     print('CREATED USER EVENT');
@@ -29,6 +27,7 @@ class CloudService {
     );
     print('USER EVENT CREATED');
   }
+
   // UPDATE EVENT
   Future<void> updateEvent(String username, String eventId, Event event) async {
     print('UPDATE USER EVENT');
@@ -43,6 +42,7 @@ class CloudService {
     );
     print('USER EVENT CREATED');
   }
+
   //CHECK IF A USER EXIST
   /*Future<bool> userExists(String username) async {
     print('CHECK USER');
@@ -74,8 +74,8 @@ class CloudService {
     }
   }*/
   Future<bool> userExists(String username) async {
-    print('CHECK USER');
     try {
+      print('CHECK USER');
       final String userUri = '/store/user/anyRandomUserId';
       final String finalUri = uri + userUri;
       var url = Uri.parse(finalUri);
@@ -110,7 +110,13 @@ class CloudService {
         'Content-Type': 'application/json',
         'accept': 'application/json',
       },
-      body: User(idUser: username, name: '', access: "USER", email: "", expires: null, publicKey: ""),
+      body: User(
+          idUser: username,
+          name: '',
+          access: "USER",
+          email: "",
+          expires: null,
+          publicKey: ""),
     );
     if (response.statusCode == 200) {
       print("USER CREATED");
@@ -192,7 +198,8 @@ class CloudService {
     );
     if (response.statusCode == 200) {
       var object = response.body;
-      List<String> allEvents = (jsonDecode(object) as List<dynamic>).cast<String>();
+      List<String> allEvents =
+          (jsonDecode(object) as List<dynamic>).cast<String>();
       return allEvents;
     } else {
       throw Exception;
@@ -201,7 +208,8 @@ class CloudService {
 
   //GET LIST OF USER EVENTS
   //FILTERED BY DATE
-  Future<List<String>> getUserEventsDateFilter(String userId, String fromTimestamp) async {
+  Future<List<String>> getUserEventsDateFilter(
+      String userId, String fromTimestamp) async {
     print('TIMETAMP FILTERED GET USER EVENT LIST');
     final String eventUri = '/store/$userId/event';
     final response = await http.get(
@@ -213,7 +221,8 @@ class CloudService {
     );
     if (response.statusCode == 200) {
       var object = response.body;
-      List<String> allEvents = (jsonDecode(object) as List<dynamic>).cast<String>();
+      List<String> allEvents =
+          (jsonDecode(object) as List<dynamic>).cast<String>();
       return allEvents;
     } else {
       throw Exception;
@@ -266,11 +275,11 @@ class CloudService {
     );
     if (response.statusCode == 200) {
       var object = jsonDecode(response.body) as List;
-      List<ThreatWeights> allWeights = object.map((e) => ThreatWeights.fromJson(e)).toList();
+      List<ThreatWeights> allWeights =
+          object.map((e) => ThreatWeights.fromJson(e)).toList();
       return allWeights;
     } else {
       throw Exception;
     }
   }
-
 }
